@@ -1,0 +1,49 @@
+// Generate a random scalar k of length l
+let k: Scalar = Scalar::random(l);
+
+// Compute the public key A = R * k * l
+let A: Point = R * (k * l);
+
+// Compute the secret key s1, s2 = S(η * l) * S(η * k)
+let s1 = S(η * l) * S(η * k);
+
+// Compute the signature t = A * s1 + s2
+let t = A * s1 + s2;
+
+// Return the public and secret keys as a tuple
+let pk = (A, t);
+let sk = (A, t, s1, s2);
+
+// Implement the Sign function
+fn sign(sk: (Point, Point, Scalar, Scalar), M: &[u8]) -> Option<(Scalar, [u8; 60])> {
+    // Compute the hash of the message and the public key
+    let c = hash(M, &sk.0);
+
+    // Generate a random scalar y
+    let mut y = Scalar::random(l);
+
+    // Compute the value z = y + c * s1
+    let mut z = y + c * sk.3;
+
+    // Check the constraints on z and c
+    while z.norm() >= γ1 - β || (sk.0 - c * sk.2).norm() >= γ2 - β {
+        // Generate a new random y if the constraints are not satisfied
+        y = Scalar::random(l);
+        z = y + c * sk.3;
+    }
+
+    // Return the signature as a tuple (z, c)
+    Some((z, c))
+}
+
+// Implement the Verify function
+fn verify(pk: (Point, Point), M: &[u8], sig: (Scalar, [u8; 60])) -> bool {
+    // Compute the hash of the message and the public key
+    let c_prime = hash(M, &pk.0);
+
+    // Check that the signature satisfies the constraints
+    let result = sig.0.norm() < γ1 - β && sig.1 == c_prime && (pk.0 * sig.0 - pk.1 - sig.1 * pk.2).norm() < γ2 - β;
+
+    // Return the result of the verification
+    result
+}
